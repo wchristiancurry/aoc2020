@@ -68,6 +68,18 @@ function digForShinyGold(bagMap, bag) {
   return shinyGoldFound;
 }
 
+function countBagsInBag(bagMap, bag) {
+  let containedBags = bagMap.get(bag);
+  let count = 0;
+  for(let i = 0; i < containedBags.length; i++) {
+    let numContained = parseInt(containedBags[i].numContained);
+    count += (numContained);
+    count += (countBagsInBag(bagMap, containedBags[i].type, count, numContained) * numContained);
+  }
+
+  return count;
+}
+
 function problem1(input) { 
   let bagMap = parseInput(input);
 
@@ -90,18 +102,6 @@ function problem1(input) {
 function problem2(input) {
   let bagMap = parseInput(input);
   return countBagsInBag(bagMap, 'shiny gold');
-}
-
-function countBagsInBag(bagMap, bag) {
-  let containedBags = bagMap.get(bag);
-  let count = 0;
-  for(let i = 0; i < containedBags.length; i++) {
-    let numContained = parseInt(containedBags[i].numContained);
-    count += (numContained);
-    count += (countBagsInBag(bagMap, containedBags[i].type, count, numContained) * numContained);
-  }
-
-  return count;
 }
 
 var input = getInput();
