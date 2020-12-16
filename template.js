@@ -13,15 +13,21 @@ function getInput() {
 }
 
 function problem1(input) { 
-  let startTime = performance.now();
-  console.log('execution time: ' + (performance.now() - startTime));
 }
 
 function problem2(input) { 
-  let startTime = performance.now();
-  console.log('execution time: ' + (performance.now() - startTime));
 }
 
-var input = getInput();
-console.log('problem 1: ' + problem1(input));
-console.log('problem 2: ' + problem2(input));
+function solve() {
+  var input = getInput();
+
+  let startTime = performance.now();
+  console.log('problem 1 solution: ' + problem1(input));
+  console.log('problem 1 execution time: ' + (performance.now() - startTime) + ' ms');
+
+  startTime = performance.now();
+  console.log('problem 2 solution: ' + problem2(input));
+  console.log('problem 2 execution time: ' + (performance.now() - startTime) + ' ms');
+}
+
+solve();
