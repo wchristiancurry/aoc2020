@@ -1,0 +1,317 @@
+const fs = require('fs');
+const { performance } = require('perf_hooks');
+
+function getInput() {
+  try {
+    input = fs.readFileSync('./in.txt', 'utf8');
+    // input = input.split("\n");
+  } catch (err) {
+    console.error(err);
+  }
+
+  return input;
+}
+
+function problem1(input) { 
+  let tiles = parseTiles(input);
+  let imageSize = Math.sqrt(tiles.length);
+
+  for(let i = 0; i < tiles.length; i++) {
+    let tile = tiles[i];
+    let newTiles = deepCopyArray(tiles).filter(i => i.id !== tile.id);
+    let result = assemble(newTiles, imageSize, [], tile, 0, 0);
+
+  }
+}
+
+function problem2(input) { 
+}
+
+const SIDE = {
+  left: 0,
+  right: 1,
+  top: 2, 
+  bottom: 3
+}
+
+function assemble(tiles, imageSize, tilesInOrder, tile, x, y) {
+  let results = assembleImageFromTiles(tiles, imageSize, tilesInOrder, tile, x, y);
+
+  do {
+    let newResults = [];
+    for(let i = 0; i < results.length; i++) {
+      let result = results[i];
+
+      let newOrder = result.newOrder;
+      console.log(newOrder.length);
+      let newTiles =result.newTiles;
+      let newX = result.newX;
+      let newY = result.newY;
+      let newTile = result.newTile;
+      result = assembleImageFromTiles(newTiles, imageSize, newOrder, newTile, newX, newY);
+      
+      for(let j = 0; j < results.length; j++) {
+        newResults.push(results[j]);
+      }
+    }
+
+    results = newResults;
+  } while(true);
+}
+
+function assembleImageFromTiles(tiles, imageSize, tilesInOrder, tile, x, y) {
+
+  let results = [];
+  if(x+1 < imageSize) {
+    if(!tilesInOrder[get1DIndexFrom2DCoord(x+1, y)]) {
+      //find all that can fit on the right side (x+1, y)
+      let r = branch(tile, tiles, SIDE.right, SIDE.left, x+1, y, imageSize, tilesInOrder);
+      for(let i = 0; i < r.length; i++) {
+        results.push(r[i]);
+      }
+    }
+  }
+  if((x-1) >= 0) {
+    if(!tilesInOrder[get1DIndexFrom2DCoord(x-1, y)]) {
+      let r = branch(tile, tiles, SIDE.left, SIDE.right, x-1, y, imageSize, tilesInOrder); //compare left side of tile to right side of some tile in tiles
+      for(let i = 0; i < r.length; i++) {
+        results.push(r[i]);
+      }
+    }
+  }
+  if((y+1) < imageSize) {
+    if(!tilesInOrder[get1DIndexFrom2DCoord(x, y+1)]) {
+      let r = branch(tile, tiles, SIDE.bottom, SIDE.top, x, y+1, imageSize, tilesInOrder);
+      for(let i = 0; i < r.length; i++) {
+        results.push(r[i]);
+      }
+    }
+  }
+  if((y-1) >= 0) {
+    if(!tilesInOrder[get1DIndexFrom2DCoord(x, y-1)]) {
+      let r = branch(tile, tiles, SIDE.top, SIDE.bottom, x, y-1, imageSize, tilesInOrder);
+      for(let i = 0; i < r.length; i++) {
+        results.push(r[i]);
+      }
+    }
+  }
+
+  return results;
+}
+
+function branch(tile, tiles, originalTileSide, sideToCompareAgainst, newX, newY, imageSize, tilesInOrder) {
+  let allValidTiles = [];
+  let sideOfTileArray = getSide(tile.content, originalTileSide);
+  for(let i = 0; i < tiles.length; i++) {
+    let valid = compareAllSidesOfTileToSide(tiles[i], sideToCompareAgainst, sideOfTileArray);
+    for(let j = 0; j < valid.length; j++) {
+      allValidTiles.push(valid[j]);
+    }
+  }
+
+  let results = [];
+  for(let i = 0; i < allValidTiles.length; i++) {
+    let validTile = allValidTiles[i];
+
+    let newOrder = deepCopyArray(tilesInOrder);
+    let orderInOrderedTiles = get1DIndexFrom2DCoord(newX, newY, imageSize);
+    newOrder[orderInOrderedTiles] = validTile;
+
+    let newTiles = deepCopyArray(tiles).filter(i => i.id !== validTile.id);
+    results.push({ newOrder: newOrder, newTiles: newTiles, newX: newX, newY: newY, newTile: validTile});
+  }
+
+  return results;
+}
+
+function compareAllSidesOfTileToSide(tile, sideOfTile, sideToCompareTo) {
+  let validTiles = [];
+
+  //do each transformation and compare side corresponding sideOfTile to sideToCompareTo
+  let nonTransformTile = { id: tile.id, content: tile.content };
+  let rotate90Tile =  { id: tile.id, content: rotate90(tile.content) };
+  let rotate180Tile = { id: tile.id, content: rotate180(tile.content) };
+  let rotate270Tile = { id: tile.id, content: rotate270(tile.content) };
+  let flipVTile = { id: tile.id, content: flipV(tile.content) };
+  let flipHTile = { id: tile.id, content: flipH(tile.content) };
+
+  if(compareSideToSide(getSide(nonTransformTile.content, sideOfTile), sideToCompareTo)) {
+    validTiles.push(nonTransformTile);
+  }
+
+  if(compareSideToSide(getSide(rotate90Tile.content, sideOfTile), sideToCompareTo)) {
+    validTiles.push(rotate90Tile);
+  }
+
+  if(compareSideToSide(getSide(rotate180Tile.content, sideOfTile), sideToCompareTo)) {
+    validTiles.push(rotate180Tile);
+  }
+
+  if(compareSideToSide(getSide(rotate270Tile.content, sideOfTile), sideToCompareTo)) {
+    validTiles.push(rotate270Tile);
+  }
+
+  if(compareSideToSide(getSide(flipVTile.content, sideOfTile), sideToCompareTo)) {
+    validTiles.push(flipVTile);
+  }
+
+  if(compareSideToSide(getSide(flipHTile.content, sideOfTile), sideToCompareTo)) {
+    validTiles.push(flipHTile);
+  }
+  
+
+  return validTiles;
+}
+
+function compareSideToSide(side1, side2) {
+  if(side1.length !== side2.length) {
+    return false;
+  }
+
+  for(let i = 0; i < side1.length; i++) {
+    if(side1[i] !== side2[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function getSide(tileContent, side) {
+  let sideArr = [];
+
+  switch(side) {
+    case SIDE.left:
+      for(let x = 0; x < tileContent[0].length; x++) { //TODO:
+        sideArr.push(tileContent[x][0]);
+      }
+      break;
+    case SIDE.right:
+      for(let x = 0; x < tileContent[0].length; x++) { //TODO:
+        sideArr.push(tileContent[x][tileContent[0].length-1]);
+      }
+      break;
+    case SIDE.top:
+      for(let y = 0; y < tileContent.length; y++) { //TODO:
+        sideArr.push(tileContent[0][y]);
+      }
+      break;
+    case SIDE.bottom:
+      for(let y = 0; y < tileContent.length; y++) { //TODO:
+        sideArr.push(tileContent[tileContent.length-1][y]);
+      }
+      break;
+  }
+
+  return sideArr;
+}
+
+function parseTiles(input) {
+  let regex = /Tile ([\d]+):\n([.#\n]+)/g;
+  let matches = Array.from(input.matchAll(regex));
+
+  let tiles = []; 
+  for(let i = 0; i < matches.length; i++) {
+    let match = matches[i];
+    let tile = {
+      id: parseInt(match[1]),
+      content: match[2].split('\n').filter(i => i !== '').map(i => i.split(''))
+    }
+    tiles.push(tile);
+  }
+
+  return tiles;
+}
+
+function rotate90(arr) {
+  let newArr = [];
+  for(let i = 0; i < arr.length; i++) {
+    newArr.push([]);
+    for(let j = 0; j < arr[i].length; j++) {
+      newArr[i][j] = arr[arr.length - j - 1][i];
+    }
+  }
+
+  return newArr;
+}
+
+function rotate180(arr) {
+  arr = rotate90(arr);
+  return rotate90(arr);
+}
+
+function rotate270(arr) {
+  arr = rotate90(arr);
+  arr = rotate90(arr);
+  return rotate90(arr);
+}
+
+function flipV(arr) {
+  let newArr = [];
+  for(let i = 0; i < arr.length; i++) {
+    newArr.push([]);
+  }
+
+  for(let y = 0; y < arr.length; y++) {
+    for(let x = 0; x < (arr.length/2); x++) {
+      let tmp = arr[arr.length - x - 1][y];
+      newArr[arr.length - x - 1][y] = arr[x][y];
+      newArr[x][y] = tmp;
+    }
+  }
+
+  return newArr;
+}
+
+function flipH(arr) {
+  let newArr = [];
+  for(let i = 0; i < arr.length; i++) {
+    newArr.push([]);
+  }
+
+  for(let x = 0; x < arr.length; x++) {
+    for(let y = 0; y < (arr.length/2); y++) {
+      let tmp = arr[x][arr.length - y - 1];
+      newArr[x][arr.length - y - 1] = arr[x][y];
+      newArr[x][y] = tmp;
+    }
+  }
+
+  return newArr;
+}
+
+function get1DIndexFrom2DCoord(x, y, size) {
+  return x + (y * size); 
+}
+
+function deepCopy2dArray(arr) {
+  let copy = [];
+  for (let i = 0; i < arr.length; i++) {
+    copy[i] = arr[i].slice();
+  }
+  return copy;
+}
+
+function deepCopyArray(arr) {
+  let copy = [];
+  for(let i = 0; i < arr.length; i++) {
+    if(typeof arr[i] !== 'undefined') {
+      copy[i] = JSON.parse(JSON.stringify(arr[i]));
+    }
+  }
+  return copy;
+}
+
+function solve() {
+  var input = getInput();
+
+  let startTime = performance.now();
+  console.log('problem 1 solution: ' + problem1(input));
+  console.log('problem 1 execution time: ' + (performance.now() - startTime) + ' ms');
+
+  startTime = performance.now();
+  console.log('problem 2 solution: ' + problem2(input));
+  console.log('problem 2 execution time: ' + (performance.now() - startTime) + ' ms');
+}
+
+solve();
